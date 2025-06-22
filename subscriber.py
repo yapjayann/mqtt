@@ -41,7 +41,7 @@ INFLUXDB_ORG    = os.getenv("INFLUXDB_ORG")
 INFLUXDB_BUCKET = os.getenv("INFLUXDB_BUCKET")
 
 # === MQTT Configuration ===
-MQTT_BROKER_URL    = "localhost"
+MQTT_BROKER_URL    = "mqtt-broker"  
 MQTT_PUBLISH_TOPIC = "yapjayann/sensors"
 
 # === Metrics and Counters ===
@@ -92,7 +92,7 @@ write_api = influx_client.write_api(
 
 # === Initialize MQTT Client ===
 mqttc = mqtt.Client()
-mqttc.connect(MQTT_BROKER_URL)
+mqttc.connect(MQTT_BROKER_URL,1883)
 
 # === Reset the inactivity timer (called every message) ===
 def reset_timer():
