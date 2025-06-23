@@ -52,6 +52,7 @@ filtered_count = 0
 duplicate_count = 0
 message_loss_count = 0
 total_received = 0
+negative_latency_count = 0         # Count messages with negative latency
 counter_lock = Lock()            # Ensure safe increment from multiple threads
 
 # === Outlier Thresholds ===
@@ -169,9 +170,14 @@ def on_message(client, userdata, msg):
             )
             return
 
-        # === Latency Calculation ===
+        # === Latency Calculation (clamp negative to 0) ===
         latency_ms = (now - sent_time).total_seconds() * 1000
+        if latency_ms < 0:
+            latency_ms = 0
+            with counter_lock:
+                negative_latency_count += 1
         total_latencies.append(latency_ms)
+
 
         # === Write to InfluxDB ===
         point = Point("smart_farm") \
@@ -207,7 +213,10 @@ def handle_exit(sig, frame):
         else:
             logging.info("📊  Latency Std Dev: N/A (only 1 data point)")
 
+        percent_negative = (negative_latency_count / len(total_latencies)) * 100
+
         logging.info(f"📊  Average Ingestion Latency: {avg:.2f} ms")
+        logging.info(f"⏱️  Negative Latencies Clamped to 0 ms: {negative_latency_count} ({percent_negative:.2f}%)")
         logging.info(f"📦  Total Messages Processed: {len(total_latencies)}")
         logging.info(f"📉  Total Messages Lost (order check): {message_loss_count}")
         logging.info(f"🔁  Duplicate Messages Skipped: {duplicate_count}")

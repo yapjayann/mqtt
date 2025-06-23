@@ -10,7 +10,7 @@ import sys
 import signal                               # For graceful shutdown on Ctrl+C
 
 # === Configuration Constants ===
-MQTT_BROKER_URL = "23.22.79.220"               # MQTT broker address
+MQTT_BROKER_URL = "54.209.210.74"               # MQTT broker address
 MQTT_PUBLISH_TOPIC = "yapjayann/sensors"    # Topic to publish sensor data
 NUM_SENSORS = 5                             # Number of simulated sensors
 MESSAGES_PER_SENSOR = 50                    # Number of messages each sensor will send
