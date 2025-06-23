@@ -10,7 +10,7 @@ import sys
 import signal                               # For graceful shutdown on Ctrl+C
 
 # === Configuration Constants ===
-MQTT_BROKER_URL = "mqtt-broker"               # MQTT broker address
+MQTT_BROKER_URL = "23.22.79.220"               # MQTT broker address
 MQTT_PUBLISH_TOPIC = "yapjayann/sensors"    # Topic to publish sensor data
 NUM_SENSORS = 5                             # Number of simulated sensors
 MESSAGES_PER_SENSOR = 50                    # Number of messages each sensor will send
@@ -25,7 +25,7 @@ stop_event = threading.Event()              # Thread-safe flag to allow graceful
 def simulate_sensor(sensor_id):
     # Create MQTT client and connect to broker
     mqttc = mqtt.Client()
-    mqttc.connect(MQTT_BROKER_URL)
+    mqttc.connect(MQTT_BROKER_URL,1883)
 
     message_id = 0
     last_payload = None                     # To reuse for sending duplicates
