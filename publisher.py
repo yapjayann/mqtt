@@ -10,13 +10,13 @@ import sys
 import signal                               # For graceful shutdown on Ctrl+C
 
 # === Configuration Constants ===
-MQTT_BROKER_URL = "54.209.210.74"               # MQTT broker address
+MQTT_BROKER_URL = "localhost"               # MQTT broker address
 MQTT_PUBLISH_TOPIC = "yapjayann/sensors"    # Topic to publish sensor data
-NUM_SENSORS = 5                             # Number of simulated sensors
-MESSAGES_PER_SENSOR = 50                    # Number of messages each sensor will send
+NUM_SENSORS = 1                             # Number of simulated sensors
+MESSAGES_PER_SENSOR = 10                    # Number of messages each sensor will send
 PUBLISH_INTERVAL = 1.0                      # Delay (in seconds) between publishes
 OUTLIER_PROBABILITY = 0.08                  # Chance of sending an outlier message
-DUPLICATE_PROBABILITY = 0.05                # Chance of sending a duplicate message
+DUPLICATE_PROBABILITY = 0.00               # Chance of sending a duplicate message
 
 faker = Faker()                             # Faker instance for generating random data
 stop_event = threading.Event()              # Thread-safe flag to allow graceful shutdown
