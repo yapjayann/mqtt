@@ -38,13 +38,15 @@ INFLUXDB_BUCKET = os.getenv("INFLUXDB_BUCKET")
 MQTT_BROKER_URL    = "mqtt-broker"
 MQTT_PUBLISH_TOPIC = "yapjayann/sensors"
 
-# === Metrics ===
-total_latencies = []
-last_message_ids = {}
-filtered_count = 0
-message_loss_count = 0
-total_received = 0
-negative_latency_count = 0
+# === Shared Metrics Dictionary ===
+metrics = {
+    "total_latencies": [],
+    "last_message_ids": {},
+    "filtered_count": 0,
+    "message_loss_count": 0,
+    "total_received": 0,
+    "negative_latency_count": 0
+}
 counter_lock = Lock()
 
 # === Outlier Thresholds ===
@@ -103,8 +105,6 @@ def on_connect(client, userdata, flags, rc):
 
 # === MQTT: On Message ===
 def on_message(client, userdata, msg):
-    global filtered_count, message_loss_count, total_received, negative_latency_count
-
     try:
         payload = msg.payload.decode()
         data = json.loads(payload)
@@ -112,7 +112,7 @@ def on_message(client, userdata, msg):
         reset_timer()
 
         with counter_lock:
-            total_received += 1
+            metrics["total_received"] += 1
 
         # Parse fields
         sensor_id = data.get("sensor_id", "unknown")
@@ -125,35 +125,35 @@ def on_message(client, userdata, msg):
         now = datetime.now(UTC)
 
         # === Message Loss Check ===
-        last_id = last_message_ids.get(sensor_id)
+        last_id = metrics["last_message_ids"].get(sensor_id)
         if last_id is not None and msg_id != last_id + 1:
             lost = msg_id - last_id - 1
             if lost > 0:
-                message_loss_count += lost
+                metrics["message_loss_count"] += lost
                 logging.warning(
                     f"⚠️  Message loss (Sensor {sensor_id}): Missed {lost} "
                     f"(last ID: {last_id}, current: {msg_id})"
                 )
-        last_message_ids[sensor_id] = msg_id
+        metrics["last_message_ids"][sensor_id] = msg_id
 
         # === Outlier Check ===
         if (
             temperature > MAX_TEMP or temperature < MIN_TEMP or
             soil_moisture < MIN_MOISTURE or soil_moisture > MAX_MOISTURE
         ):
-            filtered_count += 1
+            metrics["filtered_count"] += 1
             logging.warning(
                 f"🚫 Outlier (Sensor {sensor_id} | ID {msg_id}): "
                 f" | Temp={temperature}°C  | Moisture={soil_moisture}% — Dropped."
             )
             return
 
-        # === Latency Calculation (true, even if negative) ===
+        # === Latency Calculation (allow negative) ===
         latency_ms = (now - sent_time).total_seconds() * 1000
-        if latency_ms < 0:
-            with counter_lock:
-                negative_latency_count += 1
-        total_latencies.append(latency_ms)
+        with counter_lock:
+            if latency_ms < 0:
+                metrics["negative_latency_count"] += 1
+            metrics["total_latencies"].append(latency_ms)
 
         # === Write to InfluxDB ===
         point = Point("smart_farm") \
@@ -181,19 +181,19 @@ def handle_exit(sig, frame):
     print()
     logging.info("📉  Final Report")
 
-    if total_latencies:
-        avg = sum(total_latencies) / len(total_latencies)
-        std_dev = statistics.stdev(total_latencies) if len(total_latencies) > 1 else 0
-        percent_negative = (negative_latency_count / len(total_latencies)) * 100
+    lats = metrics["total_latencies"]
+    if lats:
+        avg = sum(lats) / len(lats)
+        std_dev = statistics.stdev(lats) if len(lats) > 1 else 0
+        percent_negative = (metrics["negative_latency_count"] / len(lats)) * 100
 
         logging.info(f"📊  Average Ingestion Latency: {avg:.2f} ms")
         logging.info(f"📊  Latency Std Dev: {std_dev:.2f} ms")
-        logging.info(f"⏱️  Negative Latencies: {negative_latency_count} ({percent_negative:.2f}%)")
-        logging.info(f"📦  Total Messages Processed: {len(total_latencies)}")
-        logging.info(f"📉  Total Messages Lost (order check): {message_loss_count}")
-        logging.info(f"🚫  Outliers Filtered: {filtered_count}")
-        with counter_lock:
-            logging.info(f"📬  TOTAL MESSAGES RECEIVED: {total_received}")
+        logging.info(f"⏱️  Negative Latencies: {metrics['negative_latency_count']} ({percent_negative:.2f}%)")
+        logging.info(f"📦  Total Messages Processed: {len(lats)}")
+        logging.info(f"📉  Total Messages Lost (order check): {metrics['message_loss_count']}")
+        logging.info(f"🚫  Outliers Filtered: {metrics['filtered_count']}")
+        logging.info(f"📬  TOTAL MESSAGES RECEIVED: {metrics['total_received']}")
     else:
         logging.warning("⚠️  No data received.")
 
@@ -216,6 +216,7 @@ def handle_exit(sig, frame):
 
 # === Start ===
 signal.signal(signal.SIGINT, handle_exit)
+signal.signal(signal.SIGTERM, handle_exit)
 mqttc.on_connect = on_connect
 mqttc.on_message = on_message
 reset_timer()
