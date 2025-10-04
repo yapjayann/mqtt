@@ -11,7 +11,7 @@ This architecture follows a **centralized client-server design**, where the clie
 
 On the client side, `publisher.py` generates JSON-encoded sensor data (temperature, humidity, soil moisture, light intensity) using the Faker and paho-mqtt libraries. Each message includes a unique ID and timestamp, and occasional outliers to simulate real-world noise. The data is sent to the cloud using the MQTT protocol, chosen for its lightweight and low-latency communication.
 
-In the cloud, an **MQTT broker** (Mosquitto) runs inside a Docker container on an AWS EC2 (t3.small) instance, which provides burstable performance for variable IoT workloads. The subscriber (`subscriber.py`) subscribes to MQTT topics, processes incoming data by filtering outliers, detecting message loss, calculating latency, and inserting data asynchronously into the database.
+In the cloud, an **MQTT broker** (Mosquitto) runs inside a Docker container on an AWS EC2 (or any cloud compute service) instance, which provides burstable performance for variable IoT workloads. The subscriber (`subscriber.py`) subscribes to MQTT topics, processes incoming data by filtering outliers, detecting message loss, calculating latency, and inserting data asynchronously into the database.
 
 The processed data is stored in **InfluxDB**, a time-series database optimized for timestamped sensor data. Grafana is optionally included for real-time visualization and performance monitoring through dashboards connected to InfluxDB.
 
